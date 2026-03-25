@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Youth 121 — Wheel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <!-- ======================== LANDING PAGE ======================== -->
+    <section id="page-landing" class="page active">
+        <nav class="nav">
+            <span class="nav-brand">YOUTH 121</span>
+            <div class="nav-links">
+                <button id="btn-to-data" class="nav-btn">Registrants</button>
+                <button id="btn-to-wheel" class="nav-btn nav-btn--primary">Open Wheel</button>
+            </div>
+        </nav>
+    </section>
+
+    <!-- ======================== DATA PAGE ======================== -->
+    <section id="page-data" class="page">
+        <div class="data-wrapper">
+            <header class="data-header">
+                <button id="btn-data-back" class="back-btn">← Back</button>
+                <h1>Registrants</h1>
+            </header>
+
+            <form id="form-add" class="add-form">
+                <input id="input-name" type="text" placeholder="Member Name" autocomplete="off" required>
+                <div class="church-field">
+                    <select id="select-church">
+                        <option value="" disabled selected>Select Church</option>
+                        <!-- options filled by JS -->
+                        <option value="__new__">＋ Add new church…</option>
+                    </select>
+                    <input id="input-new-church" type="text" placeholder="New church name" autocomplete="off" class="hidden">
+                </div>
+                <button type="submit" class="btn-primary">Add</button>
+            </form>
+
+            <div class="divider"></div>
+
+            <div id="registrant-list" class="registrant-list">
+                <!-- filled by JS -->
+            </div>
+
+            <footer class="data-footer">
+                <button id="btn-clear" class="btn-ghost btn-danger">Clear All</button>
+                <button id="btn-data-to-wheel" class="btn-primary">Go to Wheel →</button>
+            </footer>
+        </div>
+    </section>
+
+    <!-- ======================== WHEEL PAGE ======================== -->
+    <section id="page-wheel" class="page">
+        <nav class="nav">
+            <span class="nav-brand">YOUTH 121</span>
+            <button id="btn-wheel-back" class="nav-btn">← Home</button>
+        </nav>
+
+        <div class="wheel-wrapper">
+            <p id="wheel-label" class="wheel-label">Church Wheel</p>
+            <div class="wheel-scene">
+                <div class="wheel-pointer"></div>
+                <canvas id="wheel-canvas" width="460" height="460"></canvas>
+            </div>
+            <button id="btn-spin" class="btn-spin">SPIN</button>
+        </div>
+    </section>
+
+    <!-- ======================== WINNER MODAL ======================== -->
+    <div id="modal" class="modal" aria-hidden="true">
+        <div class="modal-box">
+            <p id="modal-eyebrow" class="modal-eyebrow">Church Selected</p>
+            <h2 id="modal-name">—</h2>
+            <p id="modal-sub" class="modal-sub"></p>
+            <div class="modal-actions">
+                <button id="btn-modal-next" class="btn-primary">Pick a Member →</button>
+                <button id="btn-modal-close" class="btn-ghost hidden">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
