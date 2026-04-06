@@ -1,8 +1,11 @@
 // =============================================
 // STATE
 // =============================================
-let registrants = JSON.parse(localStorage.getItem('y121_registrants')) || [];
-let churches = JSON.parse(localStorage.getItem('y121_churches')) || [];
+let allRegistrants = []; // parsed from CSV — never mutated
+let pickedMembers = JSON.parse(localStorage.getItem('y121_pickedMembers')) || [];
+// Each entry: { name, church }
+let pickedChurchesThisRound = JSON.parse(localStorage.getItem('y121_pickedChurchesRound')) || [];
+
 let wheelData = [];
 let wheelMode = 'church'; // 'church' | 'member'
 let selectedChurch = null;
@@ -92,130 +95,224 @@ function showPage(id) {
 
 document.getElementById('btn-to-data').addEventListener('click', () => {
     renderList();
-    renderChurchDropdown();
+    updateStats();
     showPage('page-data');
 });
 document.getElementById('btn-to-wheel').addEventListener('click', () => {
+    if (allRegistrants.length === 0) {
+        alert('Please load a CSV file first from the Registrants page.');
+        return;
+    }
     startChurchWheel();
+    renderWinnersList();
     showPage('page-wheel');
 });
 document.getElementById('btn-data-back').addEventListener('click', () => showPage('page-landing'));
 document.getElementById('btn-data-to-wheel').addEventListener('click', () => {
+    if (allRegistrants.length === 0) {
+        alert('Please load a CSV file first.');
+        return;
+    }
     startChurchWheel();
+    renderWinnersList();
     showPage('page-wheel');
 });
 document.getElementById('btn-wheel-back').addEventListener('click', () => showPage('page-landing'));
 
 // =============================================
-// DATA & STORAGE
+// CSV PARSING
 // =============================================
-function save() {
-    localStorage.setItem('y121_registrants', JSON.stringify(registrants));
-    localStorage.setItem('y121_churches', JSON.stringify(churches));
+function parseCSV(text) {
+    const lines = text.split(/\r?\n/);
+    const results = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        // Parse the line respecting quoted fields
+        const fields = parseCSVLine(line);
+        if (fields.length < 2) continue;
+
+        const name = fields[0].trim();
+        const church = fields[1].trim();
+
+        // Skip header rows and empty data
+        if (!name || !church) continue;
+        if (name.toLowerCase() === 'name' && church.toLowerCase() === 'church') continue;
+        if (name.toLowerCase() === 'name') continue;
+
+        results.push({ name, church });
+    }
+
+    return results;
 }
 
-// Church dropdown
-const selectChurch = document.getElementById('select-church');
-const inputNewChurch = document.getElementById('input-new-church');
+function parseCSVLine(line) {
+    const fields = [];
+    let current = '';
+    let inQuotes = false;
 
-function renderChurchDropdown() {
-    const current = selectChurch.value;
-
-    // Remove all options except the placeholder (index 0)
-    while (selectChurch.options.length > 1) {
-        selectChurch.remove(1);
-    }
-
-    // Re-add the "+ Add new" sentinel at end
-    const addNewOpt = document.createElement('option');
-    addNewOpt.value = '__new__';
-    addNewOpt.textContent = '＋ Add new church…';
-    selectChurch.appendChild(addNewOpt);
-
-    // Insert saved churches before the "+ Add new" option
-    churches.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c;
-        opt.textContent = c;
-        selectChurch.insertBefore(opt, addNewOpt);
-    });
-
-    // Restore selection if still valid
-    if (current && [...selectChurch.options].some(o => o.value === current)) {
-        selectChurch.value = current;
-    }
-}
-
-selectChurch.addEventListener('change', () => {
-    if (selectChurch.value === '__new__') {
-        inputNewChurch.classList.remove('hidden');
-        inputNewChurch.focus();
-    } else {
-        inputNewChurch.classList.add('hidden');
-        inputNewChurch.value = '';
-    }
-});
-
-document.getElementById('form-add').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const name = document.getElementById('input-name').value.trim();
-
-    let church = '';
-    if (selectChurch.value === '__new__') {
-        church = inputNewChurch.value.trim();
-        if (!church) return;
-        if (!churches.includes(church)) {
-            churches.push(church);
-            renderChurchDropdown();
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+            if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+                current += '"';
+                i++; // skip next quote
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (ch === ',' && !inQuotes) {
+            fields.push(current);
+            current = '';
+        } else {
+            current += ch;
         }
-        selectChurch.value = church;
-        inputNewChurch.classList.add('hidden');
-        inputNewChurch.value = '';
-    } else {
-        church = selectChurch.value;
     }
-
-    if (!name || !church) return;
-
-    registrants.push({ name, church });
-    save();
-    renderList();
-
-    document.getElementById('input-name').value = '';
-    document.getElementById('input-name').focus();
-});
-
-document.getElementById('btn-clear').addEventListener('click', () => {
-    if (confirm('Clear all registrants? The church list will be kept.')) {
-        registrants = [];
-        save();
-        renderList();
-    }
-});
-
-function removeRegistrant(i) {
-    registrants.splice(i, 1);
-    save();
-    renderList();
+    fields.push(current);
+    return fields;
 }
-window.removeRegistrant = removeRegistrant;
 
+// =============================================
+// CSV UPLOAD
+// =============================================
+const csvFileInput = document.getElementById('csv-file-input');
+const csvStatus = document.getElementById('csv-status');
+
+csvFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+        const text = evt.target.result;
+        allRegistrants = parseCSV(text);
+
+        if (allRegistrants.length === 0) {
+            csvStatus.textContent = '⚠ No valid registrants found in file.';
+            csvStatus.className = 'csv-status csv-status--error';
+            return;
+        }
+
+        // Save to localStorage so it persists across refreshes
+        localStorage.setItem('y121_allRegistrants', JSON.stringify(allRegistrants));
+
+        const uniqueChurches = [...new Set(allRegistrants.map(r => r.church))];
+        csvStatus.textContent = `✓ Loaded ${allRegistrants.length} registrants from ${uniqueChurches.length} churches`;
+        csvStatus.className = 'csv-status csv-status--success';
+
+        renderList();
+        updateStats();
+    };
+    reader.readAsText(file);
+});
+
+// Load from localStorage on startup
+(function loadSavedRegistrants() {
+    const saved = localStorage.getItem('y121_allRegistrants');
+    if (saved) {
+        allRegistrants = JSON.parse(saved);
+        if (allRegistrants.length > 0) {
+            const uniqueChurches = [...new Set(allRegistrants.map(r => r.church))];
+            csvStatus.textContent = `✓ ${allRegistrants.length} registrants loaded (${uniqueChurches.length} churches)`;
+            csvStatus.className = 'csv-status csv-status--success';
+        }
+    }
+})();
+
+// =============================================
+// PERSISTENCE
+// =============================================
+function savePicked() {
+    localStorage.setItem('y121_pickedMembers', JSON.stringify(pickedMembers));
+    localStorage.setItem('y121_pickedChurchesRound', JSON.stringify(pickedChurchesThisRound));
+}
+
+// =============================================
+// HELPERS
+// =============================================
+function isMemberPicked(name, church) {
+    return pickedMembers.some(p => p.name === name && p.church === church);
+}
+
+function getAvailableChurches() {
+    // Churches that still have unpicked members
+    const churchesWithMembers = [...new Set(
+        allRegistrants
+            .filter(r => !isMemberPicked(r.name, r.church))
+            .map(r => r.church)
+    )];
+    return churchesWithMembers;
+}
+
+function getChurchesForWheel() {
+    // Churches available for this round = churches with unpicked members MINUS already picked this round
+    const available = getAvailableChurches();
+    return available.filter(c => !pickedChurchesThisRound.includes(c));
+}
+
+function getUnpickedMembers(church) {
+    return allRegistrants.filter(r =>
+        r.church === church && !isMemberPicked(r.name, r.church)
+    );
+}
+
+// =============================================
+// STATS
+// =============================================
+function updateStats() {
+    document.getElementById('stat-total').textContent = allRegistrants.length;
+    const uniqueChurches = [...new Set(allRegistrants.map(r => r.church))];
+    document.getElementById('stat-churches').textContent = uniqueChurches.length;
+    document.getElementById('stat-picked').textContent = pickedMembers.length;
+    document.getElementById('stat-remaining').textContent = allRegistrants.length - pickedMembers.length;
+}
+
+// =============================================
+// REGISTRANT LIST (read-only)
+// =============================================
 function renderList() {
     const list = document.getElementById('registrant-list');
-    if (registrants.length === 0) {
-        list.innerHTML = '<p class="empty-state">No registrants yet. Add one above.</p>';
+    if (allRegistrants.length === 0) {
+        list.innerHTML = '<p class="empty-state">No registrants loaded. Upload a CSV above.</p>';
         return;
     }
-    list.innerHTML = registrants.map((r, i) => `
-        <div class="registrant-item">
+
+    list.innerHTML = allRegistrants.map((r) => {
+        const picked = isMemberPicked(r.name, r.church);
+        return `
+        <div class="registrant-item ${picked ? 'registrant-item--picked' : ''}">
             <div class="item-info">
                 <span class="item-name">${r.name}</span>
                 <span class="item-church">${r.church}</span>
             </div>
-            <button class="item-remove" onclick="removeRegistrant(${i})" title="Remove">×</button>
-        </div>
-    `).join('');
+            ${picked ? '<span class="item-picked-badge">✓ Picked</span>' : ''}
+        </div>`;
+    }).join('');
 }
+
+// =============================================
+// RESET WINNERS
+// =============================================
+document.getElementById('btn-clear').addEventListener('click', () => {
+    if (confirm('Reset all picked winners? Everyone will be eligible again.')) {
+        pickedMembers = [];
+        pickedChurchesThisRound = [];
+        savePicked();
+        renderList();
+        updateStats();
+    }
+});
+
+document.getElementById('btn-reset-winners').addEventListener('click', () => {
+    if (confirm('Reset all picked winners? Everyone will be eligible again.')) {
+        pickedMembers = [];
+        pickedChurchesThisRound = [];
+        savePicked();
+        startChurchWheel();
+        renderWinnersList();
+    }
+});
 
 // =============================================
 // WHEEL
@@ -225,11 +322,32 @@ function startChurchWheel() {
     selectedChurch = null;
     document.getElementById('wheel-label').textContent = 'Church Wheel';
 
-    const uniqueChurches = [...new Set(registrants.map(r => r.church))].filter(Boolean);
-    wheelData = uniqueChurches.map(c => ({ label: c, value: c }));
+    const availableChurches = getAvailableChurches();
 
+    // Check if ALL members are picked
+    if (availableChurches.length === 0) {
+        wheelData = [];
+        currentAngle = 0;
+        drawWheel(wheelData, currentAngle);
+        updateRoundInfo();
+        // Show "All done" modal
+        document.getElementById('modal-done').classList.add('active');
+        return;
+    }
+
+    let churchesForWheel = getChurchesForWheel();
+
+    // If all churches have been picked this round, reset the round
+    if (churchesForWheel.length === 0) {
+        pickedChurchesThisRound = [];
+        savePicked();
+        churchesForWheel = getChurchesForWheel();
+    }
+
+    wheelData = churchesForWheel.map(c => ({ label: c, value: c }));
     currentAngle = 0;
     drawWheel(wheelData, currentAngle);
+    updateRoundInfo();
 }
 
 function startMemberWheel(church) {
@@ -237,11 +355,27 @@ function startMemberWheel(church) {
     selectedChurch = church;
     document.getElementById('wheel-label').textContent = `${church} — Member Wheel`;
 
-    const members = registrants.filter(r => r.church === church);
+    const members = getUnpickedMembers(church);
     wheelData = members.map(m => ({ label: m.name, value: m }));
 
     currentAngle = 0;
     drawWheel(wheelData, currentAngle);
+    updateRoundInfo();
+}
+
+function updateRoundInfo() {
+    const available = getAvailableChurches();
+    const remaining = getChurchesForWheel();
+    const el = document.getElementById('round-info');
+
+    if (available.length === 0) {
+        el.textContent = 'All members have been picked!';
+    } else if (wheelMode === 'church') {
+        el.textContent = `${remaining.length} of ${available.length} churches remaining this round • ${pickedMembers.length} winners total`;
+    } else {
+        const members = getUnpickedMembers(selectedChurch);
+        el.textContent = `${members.length} member${members.length !== 1 ? 's' : ''} remaining in ${selectedChurch}`;
+    }
 }
 
 // =============================================
@@ -313,7 +447,13 @@ function showModal(winner) {
         document.getElementById('modal-sub').textContent = 'Spin the member wheel next';
         btnNext.classList.remove('hidden');
         btnClose.classList.add('hidden');
-        btnNext.onclick = () => { closeModal(); startMemberWheel(winner.value); };
+        btnNext.onclick = () => {
+            // Add to picked churches this round
+            pickedChurchesThisRound.push(winner.value);
+            savePicked();
+            closeModal();
+            startMemberWheel(winner.value);
+        };
     } else {
         document.getElementById('modal-eyebrow').textContent = winner.value.church;
         document.getElementById('modal-name').textContent = winner.value.name;
@@ -321,9 +461,12 @@ function showModal(winner) {
         btnNext.classList.add('hidden');
         btnClose.classList.remove('hidden');
         btnClose.onclick = () => {
-            const i = registrants.findIndex(r => r.name === winner.value.name && r.church === winner.value.church);
-            if (i !== -1) { registrants.splice(i, 1); save(); }
+            // Permanently pick this member
+            pickedMembers.push({ name: winner.value.name, church: winner.value.church });
+            savePicked();
             closeModal();
+            renderWinnersList();
+            // Go back to church wheel
             startChurchWheel();
         };
     }
@@ -335,5 +478,35 @@ function closeModal() {
     modal.classList.remove('active');
 }
 
-// Init dropdown on load
-renderChurchDropdown();
+// All-done modal close
+document.getElementById('btn-done-close').addEventListener('click', () => {
+    document.getElementById('modal-done').classList.remove('active');
+});
+
+// =============================================
+// WINNERS LIST
+// =============================================
+function renderWinnersList() {
+    const list = document.getElementById('winners-list');
+
+    if (pickedMembers.length === 0) {
+        list.innerHTML = '<p class="empty-state">No winners yet.</p>';
+        return;
+    }
+
+    // Show in reverse order (most recent first)
+    list.innerHTML = pickedMembers.slice().reverse().map((w, i) => `
+        <div class="winner-item">
+            <span class="winner-number">${pickedMembers.length - i}</span>
+            <div class="winner-info">
+                <span class="winner-name">${w.name}</span>
+                <span class="winner-church">${w.church}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+// =============================================
+// INIT
+// =============================================
+updateStats();
