@@ -32,8 +32,8 @@
             <div class="csv-upload-area">
                 <label for="csv-file-input" class="csv-upload-label">
                     <span class="csv-upload-icon">📄</span>
-                    <span class="csv-upload-text">Choose CSV file</span>
-                    <span class="csv-upload-hint">Format: Name, Church</span>
+                    <span class="csv-upload-text">Import / Replace CSV</span>
+                    <span class="csv-upload-hint">Format: Name, Church — replaces current list</span>
                 </label>
                 <input id="csv-file-input" type="file" accept=".csv" class="csv-file-input">
                 <p id="csv-status" class="csv-status"></p>
@@ -65,8 +65,14 @@
             </div>
 
             <footer class="data-footer">
-                <button id="btn-clear" class="btn-ghost btn-danger">Reset Winners</button>
-                <button id="btn-data-to-wheel" class="btn-primary">Go to Wheel →</button>
+                <div class="data-footer-left">
+                    <button id="btn-clear" class="btn-ghost btn-danger">Reset Winners</button>
+                    <button id="btn-export-csv" class="btn-ghost">⬇ Export CSV</button>
+                </div>
+                <div class="data-footer-right">
+                    <button id="btn-add-member" class="btn-ghost btn-add">+ Add Member</button>
+                    <button id="btn-data-to-wheel" class="btn-primary">Go to Wheel →</button>
+                </div>
             </footer>
         </div>
     </section>
@@ -124,6 +130,50 @@
             <p class="modal-sub">Every member has been picked.</p>
             <div class="modal-actions">
                 <button id="btn-done-close" class="btn-primary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================== ADD MEMBER MODAL ======================== -->
+    <div id="modal-add" class="modal" aria-hidden="true">
+        <div class="modal-box modal-box--form">
+            <p class="modal-eyebrow">New Registrant</p>
+            <h2 style="font-size:1.8rem; margin-bottom: 4px;">Add Member</h2>
+
+            <div class="form-group">
+                <label class="form-label" for="input-name">Full Name</label>
+                <input
+                    id="input-name"
+                    type="text"
+                    class="form-input"
+                    placeholder="e.g. Juan dela Cruz"
+                    autocomplete="off"
+                >
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="select-church">Church</label>
+                <select id="select-church" class="form-input form-select">
+                    <!-- populated by JS -->
+                </select>
+            </div>
+
+            <div class="form-group" id="other-church-group" style="display:none;">
+                <label class="form-label" for="input-other-church">Church Name</label>
+                <input
+                    id="input-other-church"
+                    type="text"
+                    class="form-input"
+                    placeholder="Type the church name"
+                    autocomplete="off"
+                >
+            </div>
+
+            <p id="add-member-error" class="add-member-error"></p>
+
+            <div class="modal-actions">
+                <button id="btn-add-cancel" class="btn-ghost">Cancel</button>
+                <button id="btn-add-confirm" class="btn-primary">Add Member</button>
             </div>
         </div>
     </div>
