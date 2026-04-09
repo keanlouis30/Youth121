@@ -23,6 +23,10 @@ io.on('connection', (socket) => {
     socket.broadcast.emit('spin', data);
   });
 
+  socket.on('sync_state', (data) => {
+    socket.broadcast.emit('sync_state', data);
+  });
+
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
   });

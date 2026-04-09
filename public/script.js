@@ -27,7 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Hide host-only controls
         const elementsToHide = [
             'btn-to-data', 'btn-reset-winners', 'btn-spin',
-            'btn-data-back', 'btn-data-to-wheel', 'btn-clear', 'btn-add-member'
+            'btn-data-back', 'btn-data-to-wheel', 'btn-clear', 'btn-add-member',
+            'btn-modal-next', 'btn-modal-close', 'btn-done-close'
         ];
         elementsToHide.forEach(id => {
             const el = document.getElementById(id);
@@ -49,6 +50,31 @@ if (socket) {
                 startMemberWheel(data.selectedChurch);
             }
             executeSpin(data.targetAngle, data.duration);
+        }
+    });
+
+    socket.on('sync_state', (data) => {
+        if (!isHost) {
+            if (data.action === 'church_picked') {
+                pickedChurchesThisRound.push(data.church);
+                savePicked();
+                closeModal();
+                startMemberWheel(data.church);
+            } else if (data.action === 'member_picked') {
+                pickedMembers.push(data.member);
+                savePicked();
+                closeModal();
+                renderWinnersList();
+                startChurchWheel();
+            } else if (data.action === 'reset_winners') {
+                pickedMembers = [];
+                pickedChurchesThisRound = [];
+                savePicked();
+                startChurchWheel();
+                renderWinnersList();
+            } else if (data.action === 'close_done') {
+                document.getElementById('modal-done').classList.remove('active');
+            }
         }
     });
 }
@@ -472,6 +498,7 @@ document.getElementById('btn-clear').addEventListener('click', () => {
         savePicked();
         renderList();
         updateStats();
+        if (socket && isHost) socket.emit('sync_state', { action: 'reset_winners' });
     }
 });
 
@@ -482,6 +509,7 @@ document.getElementById('btn-reset-winners').addEventListener('click', () => {
         savePicked();
         startChurchWheel();
         renderWinnersList();
+        if (socket && isHost) socket.emit('sync_state', { action: 'reset_winners' });
     }
 });
 
@@ -631,6 +659,7 @@ function showModal(winner) {
             savePicked();
             closeModal();
             startMemberWheel(winner.value);
+            if (socket && isHost) socket.emit('sync_state', { action: 'church_picked', church: winner.value });
         };
     } else {
         document.getElementById('modal-eyebrow').textContent = winner.value.church;
@@ -644,6 +673,7 @@ function showModal(winner) {
             closeModal();
             renderWinnersList();
             startChurchWheel();
+            if (socket && isHost) socket.emit('sync_state', { action: 'member_picked', member: { name: winner.value.name, church: winner.value.church } });
         };
     }
 
@@ -656,6 +686,7 @@ function closeModal() {
 
 document.getElementById('btn-done-close').addEventListener('click', () => {
     document.getElementById('modal-done').classList.remove('active');
+    if (socket && isHost) socket.emit('sync_state', { action: 'close_done' });
 });
 
 // =============================================
