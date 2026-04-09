@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Youth 121 — Wheel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <!-- ======================== LANDING PAGE ======================== -->
+    <section id="page-landing" class="page active">
+        <nav class="nav">
+            <span class="nav-brand">YOUTH 121</span>
+            <div class="nav-links">
+                <button id="btn-to-data" class="nav-btn">Registrants</button>
+                <button id="btn-to-wheel" class="nav-btn nav-btn--primary">Open Wheel</button>
+            </div>
+        </nav>
+    </section>
+
+    <!-- ======================== DATA PAGE ======================== -->
+    <section id="page-data" class="page">
+        <div class="data-wrapper">
+            <header class="data-header">
+                <button id="btn-data-back" class="back-btn">← Back</button>
+                <h1>Registrants</h1>
+            </header>
+
+            <div class="csv-upload-area">
+                <label for="csv-file-input" class="csv-upload-label">
+                    <span class="csv-upload-icon">📄</span>
+                    <span class="csv-upload-text">Import / Replace CSV</span>
+                    <span class="csv-upload-hint">Format: Name, Church — replaces current list</span>
+                </label>
+                <input id="csv-file-input" type="file" accept=".csv" class="csv-file-input">
+                <p id="csv-status" class="csv-status"></p>
+            </div>
+
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="status-number" id="stat-total">0</span>
+                    <span class="status-label">Total</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-number" id="stat-churches">0</span>
+                    <span class="status-label">Churches</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-number" id="stat-picked">0</span>
+                    <span class="status-label">Picked</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-number" id="stat-remaining">0</span>
+                    <span class="status-label">Remaining</span>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div id="registrant-list" class="registrant-list">
+                <!-- filled by JS -->
+            </div>
+
+            <footer class="data-footer">
+                <div class="data-footer-left">
+                    <button id="btn-clear" class="btn-ghost btn-danger">Reset Winners</button>
+                    <button id="btn-export-csv" class="btn-ghost">⬇ Export CSV</button>
+                </div>
+                <div class="data-footer-right">
+                    <button id="btn-add-member" class="btn-ghost btn-add">+ Add Member</button>
+                    <button id="btn-data-to-wheel" class="btn-primary">Go to Wheel →</button>
+                </div>
+            </footer>
+        </div>
+    </section>
+
+    <!-- ======================== WHEEL PAGE ======================== -->
+    <section id="page-wheel" class="page">
+        <nav class="nav">
+            <span class="nav-brand">YOUTH 121</span>
+            <div class="nav-links">
+                <button id="btn-wheel-back" class="nav-btn">← Home</button>
+                <button id="btn-reset-winners" class="nav-btn btn-danger-nav">Reset Winners</button>
+            </div>
+        </nav>
+
+        <div class="wheel-layout">
+            <div class="wheel-wrapper">
+                <p id="wheel-label" class="wheel-label">Church Wheel</p>
+                <div class="wheel-round-info">
+                    <span id="round-info"></span>
+                </div>
+                <div class="wheel-scene">
+                    <div class="wheel-pointer"></div>
+                    <canvas id="wheel-canvas" width="460" height="460"></canvas>
+                </div>
+                <button id="btn-spin" class="btn-spin">SPIN</button>
+            </div>
+
+            <div class="winners-panel">
+                <h3 class="winners-title">🏆 Winners</h3>
+                <div id="winners-list" class="winners-list">
+                    <p class="empty-state">No winners yet.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================== WINNER MODAL ======================== -->
+    <div id="modal" class="modal" aria-hidden="true">
+        <div class="modal-box">
+            <p id="modal-eyebrow" class="modal-eyebrow">Church Selected</p>
+            <h2 id="modal-name">—</h2>
+            <p id="modal-sub" class="modal-sub"></p>
+            <div class="modal-actions">
+                <button id="btn-modal-next" class="btn-primary">Pick a Member →</button>
+                <button id="btn-modal-close" class="btn-ghost hidden">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================== ALL DONE MODAL ======================== -->
+    <div id="modal-done" class="modal" aria-hidden="true">
+        <div class="modal-box">
+            <p class="modal-eyebrow">🎉 Congratulations</p>
+            <h2>All Done!</h2>
+            <p class="modal-sub">Every member has been picked.</p>
+            <div class="modal-actions">
+                <button id="btn-done-close" class="btn-primary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================== ADD MEMBER MODAL ======================== -->
+    <div id="modal-add" class="modal" aria-hidden="true">
+        <div class="modal-box modal-box--form">
+            <p class="modal-eyebrow">New Registrant</p>
+            <h2 style="font-size:1.8rem; margin-bottom: 4px;">Add Member</h2>
+
+            <div class="form-group">
+                <label class="form-label" for="input-name">Full Name</label>
+                <input
+                    id="input-name"
+                    type="text"
+                    class="form-input"
+                    placeholder="e.g. Juan dela Cruz"
+                    autocomplete="off"
+                >
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="select-church">Church</label>
+                <select id="select-church" class="form-input form-select">
+                    <!-- populated by JS -->
+                </select>
+            </div>
+
+            <div class="form-group" id="other-church-group" style="display:none;">
+                <label class="form-label" for="input-other-church">Church Name</label>
+                <input
+                    id="input-other-church"
+                    type="text"
+                    class="form-input"
+                    placeholder="Type the church name"
+                    autocomplete="off"
+                >
+            </div>
+
+            <p id="add-member-error" class="add-member-error"></p>
+
+            <div class="modal-actions">
+                <button id="btn-add-cancel" class="btn-ghost">Cancel</button>
+                <button id="btn-add-confirm" class="btn-primary">Add Member</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
